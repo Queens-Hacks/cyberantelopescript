@@ -1,5 +1,6 @@
 (ns cas.web
-  (:require [compojure.core :refer [defroutes GET]]
+  (:require [clojure.java.io :as io]
+            [compojure.core :refer [defroutes GET]]
             [compojure.route :refer [resources]]))
 
 (defn index [req]
@@ -8,5 +9,5 @@
    :body    "Hello from Compojure!"})
 
 (defroutes app
-  (GET "/" [] index)
+  (GET "/" [] (slurp (io/resource "public/index.html")))
   (resources "/"))
