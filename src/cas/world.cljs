@@ -5,9 +5,16 @@
                   :grass [96 125 87]
                   :sky [87 115 125]})
 
+(def passability {:stone false
+                  :dirt false
+                  :grass false
+                  :sky true})
+
 (defn tile
   [kind]
-  {:kind kind :color (tile-colors kind)})
+  {:kind kind
+   :color (tile-colors kind)
+   :passable (passability kind)})
 
 (defn new-simple-world
   [x y stone-to-dirt dirt-to-grass grass-to-sky]
