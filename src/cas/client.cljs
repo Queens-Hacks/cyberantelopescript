@@ -3,57 +3,64 @@
 
 (enable-console-print!)
 
+;; Create the pixi stage
+(def renderer
+  (.autoDetectRenderer js/PIXI 800 600 #js {:backgroundColor 0x1099bb}))
+(.appendChild (.. js/document -body) (.-view renderer))
+
+(def stage (js/PIXI.Container.))
+
+(defn- mk-texture [path]
+  ((.. js/PIXI -Texture -fromImage) path))
+(def tile-textures {:air (mk-texture "tiles/air.png")
+                    :grass (mk-texture "tiles/grass.png")
+                    :stone (mk-texture "tiles/stone.png")})
+(def robot-texture (mk-texture "tiles/robot.png"))
+
+;; XXX: Don't hard-code the world's width ane height
 (def world-width 80)
 (def world-height 60)
-
 (def state (atom {:world []
                   :player {:pos {:x 0 :y 0}
                            :mov-time [0 0]}}))
 (def keystate (atom {}))
 
-(defn setup! []
-  (let [world (world/new-mountain-world world-width world-height 30 40)]
-    (swap! state assoc :world (trace world))))
-
-(defn trace [x]
-  (println x)
-  x)
-
-;; Take rgb and produce a hex color
-(defn draw-rect! [ctx color x y width height]
-  (set! (.-fillStyle ctx) color)
-  (.fillRect ctx x y width height))
-
-(defn draw-tile! [ctx color x y]
-  (draw-rect! ctx color x y 10 10))
-
-(defn world-at [world x y]
-  (let [idx (+ x (* y world-width))]
-    ((world x) (- world-height y 1))))
-
-(defn draw-world! [world {:keys [ctx]}]
+;; Helper functions for traversing the world's state tile-by-tile
+(defn each-tile [world func]
   (loop [x 0 y 0]
     (let [it (world-at world x y)]
-      (draw-rect! ctx (:color it) (* x 10) (* y 10) 10 10)
+      (func it x y)
       (cond
         (< x (dec world-width)) (recur (inc x) y)
         (< y (dec world-height)) (recur 0 (inc y))
         :else nil))))
+(defn map-tiles [world func]
+  (vec (map-indexed (fn [x col]
+                      (vec (map-indexed #(func x %1 %2) col)))
+         world)))
+(defn world-at [world x y] ((world x) (- world-height y)))
 
-(defn draw-player! [{:keys [pos]} {:keys [ctx]}]
-  (draw-rect! ctx "#000" (* (:x pos) 10) (* (:y pos) 10) 10 10))
-
-(defn render-state! []
-  (let [canvas (.getElementById js/document "game")]
-    {:canvas canvas
-     :ctx (.getContext canvas "2d")
-     :height (.-height canvas)
-     :width (.-width canvas)}))
-
-(defn render! []
-  (let [rs (render-state!)]
-    (draw-world! (:world @state) rs)
-    (draw-player! (:player @state) rs)))
+(defn setup! []
+  (let [world (world/new-mountain-world world-width world-height 30 40)]
+    (swap! state assoc :world
+      (map-tiles world
+        (fn [x y tile]
+          (let [tex ((:kind tile) tile-textures)
+                sprite (js/PIXI.Sprite. tex)]
+            ;; Add the sprite to the stage
+            (.addChild stage sprite)
+            (set! (.-x sprite) (* x 10))
+            (set! (.-y sprite) (* (- world-height y) 10))
+            (set! (.-width sprite) 10)
+            (set! (.-height sprite) 10)
+            ;; Associate the sprite with the tile
+            (assoc tile :sprite sprite)))))
+    ;; Create the player's sprite
+    (let [psprite (js/PIXI.Sprite. robot-texture)]
+      (swap! state assoc :psprite psprite)
+      (.addChild stage psprite)
+      (set! (.-width psprite) 10)
+      (set! (.-height psprite) 10))))
 
 (defn update-player [world {:keys [pos mov-time] :as old-player}]
   (if (:passable (world-at world (:x pos) (inc (:y pos))))
@@ -78,10 +85,7 @@
 
 ;; Set up the event loop
 (defn tick! []
-  (let [start (.now js/Date)]
-    (update!)
-    (render!)
-    (println (- (.now js/Date) start))))
+  (update!))
 (js/setInterval tick! 100)
 
 ;; Set up the basic program structure
@@ -126,3 +130,13 @@
       37 (stop-walking! :left)
       39 (stop-walking! :right)
       nil)))
+
+
+(defn render-tick! []
+  (js/requestAnimationFrame render-tick!)
+  (let [sprite (:psprite @state)
+        {:keys [x y]} (:pos (:player @state))]
+    (set! (.-x sprite) (* x 10))
+    (set! (.-y sprite) (* y 10)))
+  (.render renderer stage))
+(render-tick!)
