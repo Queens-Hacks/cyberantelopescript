@@ -6,7 +6,6 @@
 (def state (atom {:world []
                   :player {:pos {:x 0 :y 0}
                            :mov-time [0 0]}}))
-
 (def keystate (atom {}))
 
 (defn setup! []
@@ -79,10 +78,42 @@
 
 ;; Set up the event loop
 (defn tick! []
-  (println @keystate)
   (update!)
   (render!))
-(js/setInterval tick! 1000)
+(js/setInterval tick! 100)
 
 ;; Set up the basic program structure
 (setup!)
+
+
+;; Movement handling logic
+(defn walk! [dir]
+  (let [op (case dir :left dec :right inc)
+        world (:world @state)
+        player (:player @state)
+        pos (:pos player)]
+    (if (:passable ((world (:y pos)) (op (:x pos))))
+      (swap! state assoc :player (update-in player [:pos :x] op))
+      player)))
+
+(def movekeymap (atom {}))
+(defn start-walking! [dir]
+  (if-not (dir @movekeymap)
+    (do (walk! dir)
+        (swap! movekeymap assoc dir (js/setInterval #(walk! dir) 100)))))
+(.addEventListener js/document "keydown"
+  (fn [e]
+    (case (.-keyCode e)
+      37 (start-walking! :left)
+      39 (start-walking! :right)
+      nil)))
+
+(defn stop-walking! [dir]
+  (js/clearInterval (dir @movekeymap))
+  (swap! movekeymap assoc dir nil))
+(.addEventListener js/document "keyup"
+  (fn [e]
+    (case (.-keyCode e)
+      37 (stop-walking! :left)
+      39 (stop-walking! :right)
+      nil)))
