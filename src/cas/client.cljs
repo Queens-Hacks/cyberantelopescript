@@ -3,45 +3,53 @@
 
 (enable-console-print!)
 
+(def world-width 80)
+(def world-height 60)
+
 (def state (atom {:world []
                   :player {:pos {:x 0 :y 0}
                            :mov-time [0 0]}}))
 (def keystate (atom {}))
 
 (defn setup! []
-  (let [world (world/new-simple-world 80 60 20 30 40)]
-    (swap! state assoc :world world)))
+  (let [world (world/new-mountain-world world-width world-height 30 40)]
+    (swap! state assoc :world (trace world))))
 
 (defn trace [x]
   (println x)
   x)
 
 ;; Take rgb and produce a hex color
-(defn pad [char width base]
-  (str (apply str (repeat (- width (.-length base)) char)) base))
-
-(defn hex2d [n]
-  (pad "0" 2 (.toString n 16)))
-
-(defn hex-color [r g b]
-  (str "#" (hex2d r) (hex2d g) (hex2d b)))
-
 (defn draw-rect! [ctx color x y width height]
-  (set! (.-fillStyle ctx) (apply hex-color color))
+  (set! (.-fillStyle ctx) color)
   (.fillRect ctx x y width height))
 
 (defn draw-tile! [ctx color x y]
   (draw-rect! ctx color x y 10 10))
 
+(defn world-at [world x y]
+  (let [idx (+ x (* y world-width))]
+    ((world x) (- world-height y 1))))
+
 (defn draw-world! [world {:keys [ctx]}]
-  (let [on-cell (fn [x y it]
-                  (draw-tile! ctx (:color it) (* x 10) (* y 10)))
-        on-row (fn [y row]
-                 (dorun (map-indexed #(on-cell %1 y %2) row)))]
-    (dorun (map-indexed on-row world))))
+  (loop [x 0 y 0]
+    (let [it (world-at world x y)]
+      (draw-rect! ctx (:color it) (* x 10) (* y 10) 10 10)
+      (cond
+        (< x (dec world-width)) (recur (inc x) y)
+        (< y (dec world-height)) (recur 0 (inc y))
+        :else nil))))
+
+
+;; (defn draw-world! [world {:keys [ctx]}]
+;;   (let [on-cell (fn [x y it]
+;;                   (draw-rect! ctx (:color it) (* x 10) (* y 10) 10 10))
+;;         on-row (fn [y row]
+;;                  (dorun (map-indexed #(on-cell %1 y %2) row)))]
+;;     (dorun (map-indexed on-row world))))
 
 (defn draw-player! [{:keys [pos]} {:keys [ctx]}]
-  (draw-tile! ctx [0 0 0] (* (:x pos) 10) (* (:y pos) 10)))
+  (draw-rect! ctx "#000" (* (:x pos) 10) (* (:y pos) 10) 10 10))
 
 (defn render-state! []
   (let [canvas (.getElementById js/document "game")]
@@ -56,7 +64,7 @@
     (draw-player! (:player @state) rs)))
 
 (defn update-player [world {:keys [pos mov-time] :as old-player}]
-  (if (:passable ((world (inc (:y pos))) (:x pos)))
+  (if (:passable (world-at world (:x pos) (inc (:y pos))))
     (update-in old-player [:pos :y] #(inc %))
     old-player))
 
@@ -78,8 +86,10 @@
 
 ;; Set up the event loop
 (defn tick! []
-  (update!)
-  (render!))
+  (let [start (.now js/Date)]
+    (update!)
+    (render!)
+    (println (- (.now js/Date) start))))
 (js/setInterval tick! 100)
 
 ;; Set up the basic program structure
@@ -92,9 +102,12 @@
         world (:world @state)
         player (:player @state)
         pos (:pos player)]
-    (if (:passable ((world (:y pos)) (op (:x pos))))
+    (cond
+      (:passable (world-at world (op (:x pos)) (:y pos)))
       (swap! state assoc :player (update-in player [:pos :x] op))
-      player)))
+      (:passable (world-at world (op (:x pos)) (dec(:y pos))))
+      (swap! state assoc :player (update-in (update-in player [:pos :y] dec) [:pos :x] op))
+      :else player)))
 
 (def movekeymap (atom {}))
 (defn start-walking! [dir]

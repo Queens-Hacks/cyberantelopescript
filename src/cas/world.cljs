@@ -1,5 +1,16 @@
 (ns cas.world)
 
+
+(defn pad [char width base]
+  (str (apply str (repeat (- width (.-length base)) char)) base))
+
+(defn hex2d [n]
+  (pad "0" 2 (.toString n 16)))
+
+(defn hex-color [r g b]
+  (str "#" (hex2d r) (hex2d g) (hex2d b)))
+
+
 (def tile-colors {:stone [125 117 114]
                   :dirt [125 97 87]
                   :grass [96 125 87]
@@ -13,7 +24,7 @@
 (defn tile
   [kind]
   {:kind kind
-   :color (tile-colors kind)
+   :color (apply hex-color (tile-colors kind))
    :passable (passability kind)})
 
 (defn new-simple-world
@@ -58,4 +69,3 @@
                       (repeat (- height bound)
                               (tile :sky)))))]
     (vec (map new-column mrange)))))
-
