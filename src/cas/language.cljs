@@ -18,9 +18,6 @@
     (= obj "WHILE")
     :while
 
-    (= obj "INT")
-    :int
-
     (= obj "SUB")
     :sub
 
@@ -29,12 +26,6 @@
 
     (= obj "DONE")
     :done
-
-    (= obj "{")
-    :open-curly
-
-    (= obj "}")
-    :close-curly
 
     (= obj "(")
     :open-paren
@@ -48,6 +39,58 @@
 
     )
   )
+
+(defn- parse-ident [stream]
+  (assert (string? (stream :peek)))
+  (stream :eat))
+
+(defn- parse-var-list [stream]
+  (assert (= (stream :eat) :open-paren))
+
+  (loop [args []]
+    (if (= (stream :peek) :close-paren)
+      args)
+    (recur (conj args (parse-ident stream)))))
+
+(defn- parse-ident-atom [stream]
+  (let [ident (stream :eat)]
+    (case (stream :peek)
+      :open-paren
+      [:func-call ident (parse-var-list stream)]
+
+      true ident)))
+
+(defn- parse-atom [stream]
+  (if (integer? (stream :peek))
+    (stream :eat)
+    (parse-ident-atom stream)))
+
+(defn- parse-dm [stream]
+  (let [left (parse-atom stream)]
+    (case (stream :peek)
+      "/" (do (stream :eat) [:div left (parse-dm stream)])
+      "*" (do (stream :eat) [:div left (parse-dm stream)])
+      true left)))
+
+(defn- parse-pm [stream]
+  (let [left (parse-dm stream)]
+    (case (stream :peek)
+      "+" [:add left (parse-pm stream)]
+      "-" [:sub left (parse-pm stream)]
+      true left)))
+
+(defn- parse-assign [stream]
+  (let [left (parse-pm stream)]
+    (case (stream :peek)
+      "="  (do (stream :eat) [:assign left (parse-assign stream)])
+      "+=" (do (stream :eat) [:assign left [:add left (parse-assign stream)]])
+      "*=" (do (stream :eat) [:assign left [:mul left (parse-assign stream)]])
+      "/=" (do (stream :eat) [:assign left [:div left (parse-assign stream)]])
+      "-=" (do (stream :eat) [:assign left [:sub left (parse-assign stream)]])
+      true left)))
+
+(defn- parse-expression [stream]
+  (parse-assign stream))
 
 ;;
 ;; Anything of the form: DO expression_list... DONE
@@ -117,7 +160,7 @@
   (assert (= (stream :eat) :sub))
 
   (let [identifier (parse-ident stream)
-        param-list (parse-param-list stream)
+        param-list (parse-var-list stream)
         block      (parse-block stream)]
     [:sub identifier param-list block]
     )
@@ -161,6 +204,5 @@
   (let [ast (make-ast text)
         idx 0]
     (fn [state] ;; action generator
-      (evaluate toks idx state)
       )
   ))
