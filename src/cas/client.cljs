@@ -6,6 +6,9 @@
 (def state (atom {:world []
                   :player {:pos {:x 0 :y 0}
                            :mov-time [0 0]}}))
+
+(def keystate (atom {}))
+
 (defn setup! []
   (let [world (world/new-simple-world 80 60 20 30 40)]
     (swap! state assoc :world world)))
@@ -65,9 +68,21 @@
 (defn update! []
   (update-player!))
 
+(defn is-key-down [key]
+  (@keystate key))
+
+(.addEventListener js/document "keydown"
+  (fn [e] (swap! keystate assoc (.-keyCode e) true)))
+
+(.addEventListener js/document "keyup"
+  (fn [e] (swap! keystate assoc (.-keyCode e) false)))
+
+;; Set up the event loop
 (defn tick! []
+  (println @keystate)
   (update!)
   (render!))
-
 (js/setInterval tick! 1000)
+
+;; Set up the basic program structure
 (setup!)
