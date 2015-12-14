@@ -4,7 +4,7 @@
 (enable-console-print!)
 
 (def state (atom {:world []
-                  :player {:pos [0 0]
+                  :player {:pos {:x 0 :y 0}
                            :mov-time [0 0]}}))
 (defn setup! []
   (let [world (world/new-simple-world 80 60 20 30 40)]
@@ -28,8 +28,8 @@
   (set! (.-fillStyle ctx) (apply hex-color color))
   (.fillRect ctx x y width height))
 
-
-
+(defn draw-ten-rect! [ctx color x y]
+  (draw-rect! ctx color x y 10 10))
 
 (defn draw-world! [world {:keys [ctx]}]
   (let [on-cell (fn [x y it]
@@ -38,9 +38,8 @@
                  (dorun (map-indexed #(on-cell %1 y %2) row)))]
     (dorun (map-indexed on-row world))))
 
-
-(defn draw-player! [player {:keys [ctx]}]
-  (draw-rect! ctx [0 0 0] (* 10 10) (* 10 10) 20 20))
+(defn draw-player! [{:keys [pos]} {:keys [ctx]}]
+  (draw-rect! ctx [0 0 0] (* (:x pos) 10) (* (:y pos) 10) 10 10))
 
 (defn render-state! []
   (let [canvas (.getElementById js/document "game")]
@@ -54,7 +53,20 @@
     (draw-world! (:world @state) rs)
     (draw-player! (:player @state) rs)))
 
+(defn update-player [world {:keys [pos mov-time] :as old-player}]
+  (if (:passable ((world (inc (:y pos))) (:x pos)))
+    (update-in old-player [:pos :y] #(inc %))
+    old-player))
+
+(defn update-player! []
+  (swap! state assoc :player (update-player (:world @state)
+                                            (:player @state))))
+
+(defn update! []
+  (update-player!))
+
 (defn tick! []
+  (update!)
   (render!))
 
 (js/setInterval tick! 1000)
