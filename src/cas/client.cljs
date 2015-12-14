@@ -30,18 +30,18 @@
   (set! (.-fillStyle ctx) (apply hex-color color))
   (.fillRect ctx x y width height))
 
-(defn draw-ten-rect! [ctx color x y]
+(defn draw-tile! [ctx color x y]
   (draw-rect! ctx color x y 10 10))
 
 (defn draw-world! [world {:keys [ctx]}]
   (let [on-cell (fn [x y it]
-                  (draw-rect! ctx (:color it) (* x 10) (* y 10) 10 10))
+                  (draw-tile! ctx (:color it) (* x 10) (* y 10)))
         on-row (fn [y row]
                  (dorun (map-indexed #(on-cell %1 y %2) row)))]
     (dorun (map-indexed on-row world))))
 
 (defn draw-player! [{:keys [pos]} {:keys [ctx]}]
-  (draw-rect! ctx [0 0 0] (* (:x pos) 10) (* (:y pos) 10) 10 10))
+  (draw-tile! ctx [0 0 0] (* (:x pos) 10) (* (:y pos) 10)))
 
 (defn render-state! []
   (let [canvas (.getElementById js/document "game")]
