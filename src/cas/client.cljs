@@ -40,14 +40,6 @@
         (< y (dec world-height)) (recur 0 (inc y))
         :else nil))))
 
-
-;; (defn draw-world! [world {:keys [ctx]}]
-;;   (let [on-cell (fn [x y it]
-;;                   (draw-rect! ctx (:color it) (* x 10) (* y 10) 10 10))
-;;         on-row (fn [y row]
-;;                  (dorun (map-indexed #(on-cell %1 y %2) row)))]
-;;     (dorun (map-indexed on-row world))))
-
 (defn draw-player! [{:keys [pos]} {:keys [ctx]}]
   (draw-rect! ctx "#000" (* (:x pos) 10) (* (:y pos) 10) 10 10))
 
@@ -105,8 +97,10 @@
     (cond
       (:passable (world-at world (op (:x pos)) (:y pos)))
       (swap! state assoc :player (update-in player [:pos :x] op))
-      (:passable (world-at world (op (:x pos)) (dec(:y pos))))
+      (:passable (world-at world (op (:x pos)) (dec (:y pos))))
       (swap! state assoc :player (update-in (update-in player [:pos :y] dec) [:pos :x] op))
+      (not (:passable (world-at world (op (:x pos)) (dec (:y pos)))))
+      (swap! state assoc :player (update-in player [:pos :y] #(- % 2)))
       :else player)))
 
 (def movekeymap (atom {}))
@@ -114,6 +108,7 @@
   (if-not (dir @movekeymap)
     (do (walk! dir)
         (swap! movekeymap assoc dir (js/setInterval #(walk! dir) 100)))))
+
 (.addEventListener js/document "keydown"
   (fn [e]
     (case (.-keyCode e)
@@ -124,6 +119,7 @@
 (defn stop-walking! [dir]
   (js/clearInterval (dir @movekeymap))
   (swap! movekeymap assoc dir nil))
+
 (.addEventListener js/document "keyup"
   (fn [e]
     (case (.-keyCode e)

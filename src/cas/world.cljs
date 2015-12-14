@@ -54,7 +54,7 @@
          result [last-level]]
     (if (= (count result) length)
       result
-      (let [next (let [up-or-down (- (rand-int 3) 1)]
+      (let [next (let [up-or-down (- (rand-int 5) 2)]
                      (limit-range (+ last-level up-or-down)
                                   lower
                                   upper))]
