@@ -1,28 +1,11 @@
 (ns cas.client
-  (:require [cas.world :as world]))
+  (:require [cas.world :as world]
+            [cas.state :refer [state world-width world-height tile-dim]]
+            [cas.render :refer [renderer stage tile-textures robot-texture]]))
 
 (enable-console-print!)
 
-;; Create the pixi stage
-(def renderer
-  (.autoDetectRenderer js/PIXI 800 600 #js {:backgroundColor 0x1099bb}))
-(.appendChild (.. js/document -body) (.-view renderer))
-
-(def stage (js/PIXI.Container.))
-
-(defn- mk-texture [path]
-  ((.. js/PIXI -Texture -fromImage) path))
-(def tile-textures {:air (mk-texture "tiles/air.png")
-                    :grass (mk-texture "tiles/grass.png")
-                    :stone (mk-texture "tiles/stone.png")})
-(def robot-texture (mk-texture "tiles/robot.png"))
-
 ;; XXX: Don't hard-code the world's width ane height
-(def world-width 80)
-(def world-height 60)
-(def state (atom {:world []
-                  :player {:pos {:x 0 :y 0}
-                           :mov-time [0 0]}}))
 (def keystate (atom {}))
 
 ;; Helper functions for traversing the world's state tile-by-tile
@@ -41,7 +24,7 @@
 (defn world-at [world x y] ((world x) (- world-height y)))
 
 (defn setup! []
-  (let [world (world/new-mountain-world world-width world-height 30 40)]
+  (let [world (world/new-mountain-world world-width world-height 5 20)]
     (swap! state assoc :world
       (map-tiles world
         (fn [x y tile]
@@ -49,18 +32,19 @@
                 sprite (js/PIXI.Sprite. tex)]
             ;; Add the sprite to the stage
             (.addChild stage sprite)
-            (set! (.-x sprite) (* x 10))
-            (set! (.-y sprite) (* (- world-height y) 10))
-            (set! (.-width sprite) 10)
-            (set! (.-height sprite) 10)
+            (println (:kind tile) tile-dim)
+            (set! (.-x sprite) (* x tile-dim))
+            (set! (.-y sprite) (* (- world-height y) tile-dim))
+            (set! (.-width sprite) tile-dim)
+            (set! (.-height sprite) tile-dim)
             ;; Associate the sprite with the tile
             (assoc tile :sprite sprite)))))
     ;; Create the player's sprite
     (let [psprite (js/PIXI.Sprite. robot-texture)]
       (swap! state assoc :psprite psprite)
       (.addChild stage psprite)
-      (set! (.-width psprite) 10)
-      (set! (.-height psprite) 10))))
+      (set! (.-width psprite) tile-dim)
+      (set! (.-height psprite) tile-dim))))
 
 (defn update-player [world {:keys [pos mov-time] :as old-player}]
   (if (:passable (world-at world (:x pos) (inc (:y pos))))
@@ -136,7 +120,7 @@
   (js/requestAnimationFrame render-tick!)
   (let [sprite (:psprite @state)
         {:keys [x y]} (:pos (:player @state))]
-    (set! (.-x sprite) (* x 10))
-    (set! (.-y sprite) (* y 10)))
+    (set! (.-x sprite) (* x tile-dim))
+    (set! (.-y sprite) (* y tile-dim)))
   (.render renderer stage))
 (render-tick!)
