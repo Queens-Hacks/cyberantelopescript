@@ -39,12 +39,21 @@
             (set! (.-height sprite) tile-dim)
             ;; Associate the sprite with the tile
             (assoc tile :sprite sprite)))))
+    ;; Create a player robot.
+    (swap! state assoc :player (new-robot 3 3 player-script))
     ;; Create the player's sprite
     (let [psprite (js/PIXI.Sprite. robot-texture)]
       (swap! state assoc :psprite psprite)
       (.addChild stage psprite)
       (set! (.-width psprite) tile-dim)
       (set! (.-height psprite) tile-dim))))
+
+(defn new-robot
+  [x y script]
+  {:pos {:x x :y y}
+   :script script
+   :pointer nil
+   :response nil})
 
 (defn is-key-down [key]
   (@keystate key))
@@ -66,26 +75,26 @@
         (is-key-down 40) [:move :down]
         :else nil))
 
-(defn move-player
-  [world player dir]
+(defn move-robot
+  [world robot dir]
   (let [x-op (case dir :left dec :right inc identity)
         y-op (case dir :up dec :down inc identity)
-        pos (:pos player)]
+        pos (:pos robot)]
     (cond (:passable (world-at world (x-op (:x pos)) (y-op (:y pos))))
-          (update-in (update-in player [:pos :y] y-op) [:pos :x] x-op)
+          (update-in (update-in robot [:pos :y] y-op) [:pos :x] x-op)
           (and (or (= dir :left) (= dir :right))
                (:passable (world-at world (x-op (:x pos)) (dec (:y pos)))))
-          (update-in (update-in player [:pos :y] dec) [:pos :x] x-op)
-          :else player)))
+          (update-in (update-in robot [:pos :y] dec) [:pos :x] x-op)
+          :else robot)))
 
-(defn player-command
-  [world player]
-  (let [command (player-script nil nil)]
+(defn command-robot
+  [world {:keys [:script :pointer :response] :as robot}]
+  (let [command (script pointer response)]
     (if command
       (let [kind (command 0) param (command 1)]
         (case kind
-          :move (move-player world player param)))
-      player)))
+          :move (move-robot world robot param)))
+      robot)))
 
 (defn apply-gravity
   [world {:keys [pos] :as player}]
@@ -103,7 +112,7 @@
   (let [player (:player @state)
         world (:world @state)]
     (->> player
-         (player-command world)
+         (command-robot world)
          (apply-gravity world)
          (swap! state assoc :player))))
 
@@ -114,10 +123,10 @@
 (defn tick! []
   (update!))
 
-(js/setInterval tick! 100)
-
 ;; Set up the basic program structure.
 (setup!)
+
+(js/setInterval tick! 100)
 
 (defn render-tick! []
   (js/requestAnimationFrame render-tick!)
