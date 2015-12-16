@@ -87,6 +87,10 @@
          (is-key-down 38) [:move :up]
          (is-key-down 39) [:move :right]
          (is-key-down 40) [:move :down]
+         (is-key-down 87) [:dig :up]
+         (is-key-down 83) [:dig :down]
+         (is-key-down 65) [:dig :left]
+         (is-key-down 68) [:dig :right]
          :else nil)
    :pointer nil})
 
@@ -112,6 +116,16 @@
           (update-in (update-in robot [:pos :y] dec) [:pos :x] x-op)
           :else robot)))
 
+(defn dig-robot!
+  [world robot dir]
+  (let [pos (:pos robot)]
+    (case dir
+      :down (set-world-at! (pos :x) (inc (pos :y)) :air)
+      :up (set-world-at! (pos :x) (dec (pos :y)) :air)
+      :left (set-world-at! (dec (pos :x)) (pos :y) :air)
+      :right (set-world-at! (inc (pos :x)) (pos :y) :air))
+    robot))
+
 (defn command-robot
   [world {:keys [:script :pointer :response] :as robot}]
   (let [resp (script pointer response)
@@ -121,7 +135,8 @@
     (if command
       (let [kind (command 0) param (command 1)]
         (case kind
-          :move (move-robot world robot param)))
+          :move (move-robot world robot param)
+          :dig (dig-robot! world robot param)))
       robot)))
 
 (defn apply-gravity
@@ -155,6 +170,7 @@
 (setup!)
 
 (set-world-at! 3 4 :stone)
+(set-world-at! 3 4 :air)
 
 (js/setInterval tick! 100)
 

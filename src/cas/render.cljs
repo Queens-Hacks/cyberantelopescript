@@ -16,7 +16,7 @@
     ; (set! (.-scaleMode tex) js/PIXI.SCALE_MODES.NEAREST)
     (println (.-scaleMode tex))
     tex))
-(def tile-textures {:air (mk-texture "tiles/air.png")
+(def tile-textures {:air (mk-texture "tiles/sky.png")
                     :dirt (mk-texture "tiles/dirt.png")
                     :stone (mk-texture "tiles/stone.png")})
 (def robot-texture (mk-texture "tiles/robot.png"))

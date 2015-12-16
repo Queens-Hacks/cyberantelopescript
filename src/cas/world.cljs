@@ -4,7 +4,7 @@
 (def passability {:stone false
                   :dirt false
                   :grass false
-                  :sky true})
+                  :air true})
 
 (defn tile
   [kind]
@@ -42,5 +42,5 @@
                                (tile :stone))
                        (repeat dirt  (tile :dirt))
                        (repeat (- height bound)
-                         (tile :sky))))))]
+                         (tile :air))))))]
     (vec (map new-column mrange)))))
