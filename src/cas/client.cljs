@@ -50,10 +50,13 @@
   (@keystate key))
 
 (.addEventListener js/document "keydown"
-  (fn [e] (swap! keystate assoc (.-keyCode e) true)))
+                   (fn [e]
+                     (. e preventDefault)
+                     (swap! keystate assoc (.-keyCode e) true)))
 
 (.addEventListener js/document "keyup"
-  (fn [e] (swap! keystate assoc (.-keyCode e) false)))
+                   (fn [e]
+                     (swap! keystate assoc (.-keyCode e) false)))
 
 (defn player-script
   [state response]
