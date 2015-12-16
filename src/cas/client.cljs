@@ -68,11 +68,23 @@
                      (swap! keystate assoc (.-keyCode e) false)))
 
 (defn player-script
-  [state response]
-  (cond (is-key-down 37) [:move :left]
-        (is-key-down 38) [:move :up]
-        (is-key-down 39) [:move :right]
-        (is-key-down 40) [:move :down]
+  [pointer response]
+  {:command
+   (cond (is-key-down 37) [:move :left]
+         (is-key-down 38) [:move :up]
+         (is-key-down 39) [:move :right]
+         (is-key-down 40) [:move :down]
+         :else nil)
+   :pointer nil})
+
+(defn up-right-script
+  [pointer response]
+  (cond (= pointer nil)
+        {:command [:move :right] :pointer 0}
+        (= pointer 0)
+        {:command [:move :up] :pointer 1}
+        (= pointer 1)
+        {:command [:move :right] :pointer 0}
         :else nil))
 
 (defn move-robot
@@ -89,7 +101,10 @@
 
 (defn command-robot
   [world {:keys [:script :pointer :response] :as robot}]
-  (let [command (script pointer response)]
+  (let [resp (script pointer response)
+        command (:command resp)
+        pointer (:pointer resp)
+        robot (assoc robot :pointer pointer)]
     (if command
       (let [kind (command 0) param (command 1)]
         (case kind
