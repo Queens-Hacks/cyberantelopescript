@@ -9,6 +9,19 @@
 
 (defn world-at [world x y] ((world x) (- world-height y)))
 
+(defn set-world-at!
+  [x y kind]
+  (let [tile (world-at (:world @state) x y)
+        sprite (:sprite tile)
+        tex (kind tile-textures)]
+    (set! (.-texture sprite) tex)
+    (swap! state update-in
+           [:world x (- world-height y) :kind]
+           (fn [] kind))
+    (swap! state update-in
+           [:world x (- world-height y) :passable]
+           (fn [] (world/passability kind)))))
+
 ;; Helper functions for traversing the world's state tile-by-tile
 (defn each-tile [world func]
   (loop [x 0 y 0]
@@ -140,6 +153,8 @@
 
 ;; Set up the basic program structure.
 (setup!)
+
+(set-world-at! 3 4 :stone)
 
 (js/setInterval tick! 100)
 
