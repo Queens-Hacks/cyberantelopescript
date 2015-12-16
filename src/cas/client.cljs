@@ -5,8 +5,9 @@
 
 (enable-console-print!)
 
-;; XXX: Don't hard-code the world's width ane height
 (def keystate (atom {}))
+
+(defn world-at [world x y] ((world x) (- world-height y)))
 
 ;; Helper functions for traversing the world's state tile-by-tile
 (defn each-tile [world func]
@@ -21,10 +22,9 @@
   (vec (map-indexed (fn [x col]
                       (vec (map-indexed #(func x %1 %2) col)))
          world)))
-(defn world-at [world x y] ((world x) (- world-height y)))
 
 (defn setup! []
-  (let [world (world/new-mountain-world world-width world-height 5 20)]
+  (let [world (world/new-mountain-world world-width world-height 5 15)]
     (swap! state assoc :world
       (map-tiles world
         (fn [x y tile]
@@ -46,18 +46,6 @@
       (set! (.-width psprite) tile-dim)
       (set! (.-height psprite) tile-dim))))
 
-(defn update-player [world {:keys [pos mov-time] :as old-player}]
-  (if (:passable (world-at world (:x pos) (inc (:y pos))))
-    (update-in old-player [:pos :y] #(inc %))
-    old-player))
-
-(defn update-player! []
-  (swap! state assoc :player (update-player (:world @state)
-                                            (:player @state))))
-
-(defn update! []
-  (update-player!))
-
 (defn is-key-down [key]
   (@keystate key))
 
@@ -67,54 +55,66 @@
 (.addEventListener js/document "keyup"
   (fn [e] (swap! keystate assoc (.-keyCode e) false)))
 
-;; Set up the event loop
+(defn player-script
+  [state response]
+  (cond (is-key-down 37) [:move :left]
+        (is-key-down 38) [:move :up]
+        (is-key-down 39) [:move :right]
+        (is-key-down 40) [:move :down]
+        :else nil))
+
+(defn move-player
+  [world player dir]
+  (let [x-op (case dir :left dec :right inc identity)
+        y-op (case dir :up dec :down inc identity)
+        pos (:pos player)]
+    (cond (:passable (world-at world (x-op (:x pos)) (y-op (:y pos))))
+          (update-in (update-in player [:pos :y] y-op) [:pos :x] x-op)
+          (and (or (= dir :left) (= dir :right))
+               (:passable (world-at world (x-op (:x pos)) (dec (:y pos)))))
+          (update-in (update-in player [:pos :y] dec) [:pos :x] x-op)
+          :else player)))
+
+(defn player-command
+  [world player]
+  (let [command (player-script nil nil)]
+    (if command
+      (let [kind (command 0) param (command 1)]
+        (case kind
+          :move (move-player world player param)))
+      player)))
+
+(defn apply-gravity
+  [world {:keys [pos] :as player}]
+  (letfn [(air-below? []
+            (:passable (world-at world (:x pos) (inc (:y pos)))))
+          (air-beside? [dir]
+            (let [op (case dir :left dec :right inc)]
+              (:passable (world-at world (op (:x pos)) (:y pos)))))]
+    (if (and (air-below?)
+             (and (air-beside? :left) (air-beside? :right)))
+      (update-in player [:pos :y] inc)
+      player)))
+
+(defn update-player! []
+  (let [player (:player @state)
+        world (:world @state)]
+    (->> player
+         (player-command world)
+         (apply-gravity world)
+         (swap! state assoc :player))))
+
+(defn update! []
+  (update-player!))
+
+;; Set up the event loop.
 (defn tick! []
   (update!))
+
 (js/setInterval tick! 100)
 
-;; Set up the basic program structure
+;; Set up the basic program structure.
 (setup!)
-
-
-;; Movement handling logic
-(defn walk! [dir]
-  (let [op (case dir :left dec :right inc)
-        world (:world @state)
-        player (:player @state)
-        pos (:pos player)]
-    (cond
-      (:passable (world-at world (op (:x pos)) (:y pos)))
-      (swap! state assoc :player (update-in player [:pos :x] op))
-      (:passable (world-at world (op (:x pos)) (dec (:y pos))))
-      (swap! state assoc :player (update-in (update-in player [:pos :y] dec) [:pos :x] op))
-      (not (:passable (world-at world (op (:x pos)) (dec (:y pos)))))
-      (swap! state assoc :player (update-in player [:pos :y] #(- % 2)))
-      :else player)))
-
-(def movekeymap (atom {}))
-(defn start-walking! [dir]
-  (if-not (dir @movekeymap)
-    (do (walk! dir)
-        (swap! movekeymap assoc dir (js/setInterval #(walk! dir) 100)))))
-
-(.addEventListener js/document "keydown"
-  (fn [e]
-    (case (.-keyCode e)
-      37 (start-walking! :left)
-      39 (start-walking! :right)
-      nil)))
-
-(defn stop-walking! [dir]
-  (js/clearInterval (dir @movekeymap))
-  (swap! movekeymap assoc dir nil))
-
-(.addEventListener js/document "keyup"
-  (fn [e]
-    (case (.-keyCode e)
-      37 (stop-walking! :left)
-      39 (stop-walking! :right)
-      nil)))
-
 
 (defn render-tick! []
   (js/requestAnimationFrame render-tick!)
@@ -123,4 +123,5 @@
     (set! (.-x sprite) (* x tile-dim))
     (set! (.-y sprite) (* y tile-dim)))
   (.render renderer stage))
+
 (render-tick!)

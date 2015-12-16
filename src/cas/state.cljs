@@ -6,5 +6,5 @@
 (def tile-dim 32)
 
 (def state (atom {:world []
-                  :player {:pos {:x 0 :y 0}
+                  :player {:pos {:x 3 :y 3}
                            :mov-time [0 0]}}))
