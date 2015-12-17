@@ -112,7 +112,8 @@
     (cond (:passable (world-at world (x-op (:x pos)) (y-op (:y pos))))
           (update-in (update-in robot [:pos :y] y-op) [:pos :x] x-op)
           (and (or (= dir :left) (= dir :right))
-               (:passable (world-at world (x-op (:x pos)) (dec (:y pos)))))
+               (:passable (world-at world (x-op (:x pos)) (dec (:y pos))))
+               (:passable (world-at world (:x pos) (dec (:y pos)))))
           (update-in (update-in robot [:pos :y] dec) [:pos :x] x-op)
           :else robot)))
 
