@@ -7,7 +7,7 @@
 
 (def keystate (atom {}))
 
-(defn world-at [world x y] ((world x) (- world-height y)))
+(defn world-at [world x y] ((world x) y))
 
 (defn set-world-at!
   [x y kind]
@@ -16,10 +16,10 @@
         tex (kind tile-textures)]
     (set! (.-texture sprite) tex)
     (swap! state update-in
-           [:world x (- world-height y) :kind]
+           [:world x y :kind]
            (fn [] kind))
     (swap! state update-in
-           [:world x (- world-height y) :passable]
+           [:world x y :passable]
            (fn [] (world/passability kind)))))
 
 ;; Helper functions for traversing the world's state tile-by-tile
@@ -47,7 +47,7 @@
             (.addChild stage sprite)
             (println (:kind tile) tile-dim)
             (set! (.-x sprite) (* x tile-dim))
-            (set! (.-y sprite) (* (- world-height y) tile-dim))
+            (set! (.-y sprite) (* y tile-dim))
             (set! (.-width sprite) tile-dim)
             (set! (.-height sprite) tile-dim)
             ;; Associate the sprite with the tile

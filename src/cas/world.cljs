@@ -38,9 +38,9 @@
   (let [mrange (new-mountain-range width lower upper)]
     (letfn [(new-column [bound]
               (let [dirt (rand-in-range 1 4)]
-                (vec (concat (repeat (- bound dirt)
-                               (tile :stone))
-                       (repeat dirt  (tile :dirt))
-                       (repeat (- height bound)
-                         (tile :air))))))]
-    (vec (map new-column mrange)))))
+                (vec (concat (repeat (- height bound)
+                                     (tile :air))
+                             (repeat dirt  (tile :dirt))
+                             (repeat (- bound dirt)
+                                     (tile :stone))))))]
+      (vec (map new-column mrange)))))
