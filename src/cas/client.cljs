@@ -37,7 +37,7 @@
          world)))
 
 (defn setup! []
-  (let [world (world/new-mountain-world world-width world-height 5 15)]
+  (let [world (world/new-mountain-world world-width world-height 80 120)]
     (swap! state assoc :world
       (map-tiles world
         (fn [x y tile]
@@ -180,7 +180,16 @@
   (let [sprite (:psprite @state)
         {:keys [x y]} (:pos (:player @state))]
     (set! (.-x sprite) (* x tile-dim))
-    (set! (.-y sprite) (* y tile-dim)))
+    (set! (.-y sprite) (* y tile-dim))
+    (let [half-player (/ tile-dim 2)
+          pixel-px (+ (* x tile-dim) half-player)
+          pixel-py (+ (* y tile-dim) half-player)
+          half-viewx (/ 800 2)
+          half-viewy (/ 600 2)
+          offset-x (- half-viewx pixel-px)
+          offset-y (- half-viewy pixel-py)]
+      (set! (.-x stage) offset-x)
+      (set! (.-y stage) offset-y)))
   (.render renderer stage))
 
 (render-tick!)
