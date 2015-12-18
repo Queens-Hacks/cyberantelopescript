@@ -37,7 +37,7 @@
          world)))
 
 (defn setup! []
-  (let [world (world/new-mountain-world world-width world-height 80 120)]
+  (let [world (world/new-chunk world-width world-height)]
     (swap! state assoc :world
       (map-tiles world
         (fn [x y tile]

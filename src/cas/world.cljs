@@ -44,3 +44,49 @@
                              (repeat (- bound dirt)
                                      (tile :stone))))))]
       (vec (map new-column mrange)))))
+
+(defn new-coord-map
+  [width height]
+  (letfn [(new-col [x]
+            (vec (map (fn [y] [x y]) (range height))))]
+  (vec (map new-col (range width)))))
+
+(defn new-simplex-map
+  [width height]
+  (let [simpl (js/SimplexNoise. rand)
+        coords (new-coord-map width height)
+        freq (/ 5.0 width)]
+    (letfn [(simplex-tile [coord]
+              (.noise2D simpl
+                        (* freq (coord 0))
+                        (* freq (coord 1))))
+            (simplex-col [col]
+              (vec (map simplex-tile col)))]
+      (vec (map simplex-col coords)))))
+
+(defn apply-linear-gradient
+  [grid height]
+  (let [grad (vec (map #(* % (/ 1.0 height))
+                       (range height)))]
+    (vec (map #(vec (map + % grad)) grid))))
+
+(defn grid-to-stone
+  [grid]
+  (vec (map (fn [col] (vec (map (fn [cell]
+                                  (tile (if (<= cell 0.5)
+                                    :air
+                                    :stone))
+                        )
+                      col)))
+       grid)))
+
+(defn new-chunk
+  [width height]
+  (let [simplex-map (new-simplex-map width height)
+        weighted-map (apply-linear-gradient simplex-map height)]
+    (grid-to-stone weighted-map)))
+
+;(enable-console-print!)
+;(println "about to simplex")
+;(println "simplex map" (new-simplex-map 10 20))
+;(println "done simplex")
