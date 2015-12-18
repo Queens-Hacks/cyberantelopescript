@@ -54,18 +54,21 @@
 (defn new-simplex-map
   [width height]
   (let [simpl (js/SimplexNoise. rand)
-        coords (new-coord-map width height)]
+        coords (new-coord-map width height)
+        freq (/ 5.0 width)]
     (letfn [(simplex-tile [coord]
-              (.noise2D simpl (coord 0) (coord 1)))
+              (.noise2D simpl
+                        (* freq (coord 0))
+                        (* freq (coord 1))))
             (simplex-col [col]
               (vec (map simplex-tile col)))]
       (vec (map simplex-col coords)))))
 
 (defn apply-linear-gradient
   [grid height]
-  (let [grad (vec (map #(* % (/ 1 height))
+  (let [grad (vec (map #(* % (/ 1.0 height))
                        (range height)))]
-    (vec (map #(vec (map * % grad)) grid))))
+    (vec (map #(vec (map + % grad)) grid))))
 
 (defn grid-to-stone
   [grid]
