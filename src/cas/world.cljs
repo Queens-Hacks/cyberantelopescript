@@ -8,10 +8,8 @@
                   :air true
                   :ore false})
 
-(defn tile
+(defn mk-tile
   [kind]
-  (if (= kind :ore)
-    (println "HEYO!"))
   {:kind kind
    :passable (passability kind)})
 
@@ -43,10 +41,10 @@
     (letfn [(new-column [bound]
               (let [dirt (rand-in-range 1 4)]
                 (vec (concat (repeat (- height bound)
-                                     (tile :air))
-                             (repeat dirt  (tile :dirt))
+                                     (mk-tile :air))
+                             (repeat dirt  (mk-tile :dirt))
                              (repeat (- bound dirt)
-                                     (tile :stone))))))]
+                                     (mk-tile :stone))))))]
       (vec (map new-column mrange)))))
 
 (defn new-coord-map
@@ -77,10 +75,10 @@
 
 (defn ores-transform
   [tiles x y noise]
-  (let [t (tile-at tiles x y)]
-    (if (and (= (:kind t) :stone) (< noise -0.7))
-      (tile :ore)
-      t)))
+  (let [tile (tile-at tiles x y)]
+    (if (and (= (:kind tile) :stone) (< noise -0.7))
+      (mk-tile :ore)
+      tile)))
 
 (defn hills-caves-transform
   [x y noise]
@@ -104,19 +102,19 @@
 
 (defn noise-to-tiles
   [x y noise]
-  (tile
+  (mk-tile
     (cond
       (< noise 0) :air
       (< noise 0.15) :dirt
       :else :stone)))
 
 (defn grow-grass
-  [tiles x y t]
+  [tiles x y tile]
   (if (and
-        (= (:kind t) :dirt)
+        (= (:kind tile) :dirt)
         (= (:kind (tile-at tiles x (dec y))) :air))
-    (tile :grass)
-    t))
+    (mk-tile :grass)
+    tile))
 
 (defn new-chunk
   [width height]
