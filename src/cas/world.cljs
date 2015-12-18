@@ -1,13 +1,17 @@
-(ns cas.world)
+(ns cas.world
+  (:require [cas.util :refer [tile-at each-tile map-tiles]]))
 
 
 (def passability {:stone false
                   :dirt false
                   :grass false
-                  :air true})
+                  :air true
+                  :ore false})
 
 (defn tile
   [kind]
+  (if (= kind :ore)
+    (println "HEYO!"))
   {:kind kind
    :passable (passability kind)})
 
@@ -48,18 +52,19 @@
 (defn new-coord-map
   [width height]
   (letfn [(new-col [x]
-            (vec (map (fn [y] [x y]) (range height))))]
-  (vec (map new-col (range width)))))
+            (map #(vector x %) (range height)))]
+  (map new-col (range width))))
 
 (defn new-simplex-map
-  [width height]
+  [width height [densx densy] transformer]
   (let [simpl (js/SimplexNoise. rand)
         coords (new-coord-map width height)
-        freq (/ 20.0 width)]
-    (letfn [(simplex-tile [coord]
-              (.noise2D simpl
-                        (* freq (coord 0))
-                        (* freq (coord 1))))
+        freqx (/ densx width)
+        freqy (/ densy height)]
+    (letfn [(simplex-tile [[x y]]
+              (let [noise (.noise2D simpl (* freqx x) (* freqy y))
+                    noise_prime (transformer x y noise)]
+                noise_prime))
             (simplex-col [col]
               (vec (map simplex-tile col)))]
       (vec (map simplex-col coords)))))
@@ -70,21 +75,58 @@
                        (range height)))]
     (vec (map #(vec (map + % grad)) grid))))
 
-(defn grid-to-stone
-  [grid]
-  (vec (map (fn [col] (vec (map (fn [cell]
-                                  (tile (if (<= cell 0.1)
-                                    :air
-                                    :stone))
-                        )
-                      col)))
-       grid)))
+(defn ores-transform
+  [tiles x y noise]
+  (let [t (tile-at tiles x y)]
+    (if (and (= (:kind t) :stone) (< noise -0.7))
+      (tile :ore)
+      t)))
+
+(defn hills-caves-transform
+  [x y noise]
+  (def BASE-NUMBER 20)
+  (def RANDOM_NUMBER 50)
+  (def CENTER-NUMBER (/ RANDOM_NUMBER 2))
+  (if (< y BASE-NUMBER)
+    -1
+    (let [y (- y BASE-NUMBER)
+          norm-noise (/ (+ noise 1) 2)]
+      (if (< y RANDOM_NUMBER)
+        (let [extremeness (/ (js/Math.abs (- y CENTER-NUMBER)) CENTER-NUMBER)
+              noisyness (- 1 extremeness)
+              adjusted-noise (* norm-noise noisyness)
+              is-air (< y CENTER-NUMBER)]
+          (cond
+            is-air (- noise extremeness)
+            (= y CENTER-NUMBER) noise
+            :else (+ noise extremeness)))
+        1))))
+
+(defn noise-to-tiles
+  [x y noise]
+  (tile
+    (cond
+      (< noise 0) :air
+      (< noise 0.15) :dirt
+      :else :stone)))
+
+(defn grow-grass
+  [tiles x y t]
+  (if (and
+        (= (:kind t) :dirt)
+        (= (:kind (tile-at tiles x (dec y))) :air))
+    (tile :grass)
+    t))
 
 (defn new-chunk
   [width height]
-  (let [simplex-map (new-simplex-map width height)
-        weighted-map (apply-linear-gradient simplex-map height)]
-    (grid-to-stone weighted-map)))
+  (let [simplex-map (new-simplex-map width height [3 2]
+                      hills-caves-transform)
+        tiles (map-tiles simplex-map noise-to-tiles)
+        grassy-tiles (map-tiles tiles (partial grow-grass tiles))
+        ores-map (new-simplex-map width height [20 20]
+                   (partial ores-transform grassy-tiles))]
+    ores-map))
 
 ;(enable-console-print!)
 ;(println "about to simplex")

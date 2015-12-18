@@ -18,7 +18,9 @@
     tex))
 (def tile-textures {:air (mk-texture "tiles/sky.png")
                     :dirt (mk-texture "tiles/dirt.png")
-                    :stone (mk-texture "tiles/stone.png")})
+                    :stone (mk-texture "tiles/stone.png")
+                    :ore (mk-texture "tiles/ore.png")
+                    :grass (mk-texture "tiles/grass.png")})
 (def robot-texture (mk-texture "tiles/robot.png"))
 
 

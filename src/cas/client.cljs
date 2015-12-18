@@ -1,13 +1,14 @@
 (ns cas.client
   (:require [cas.world :as world]
             [cas.state :refer [state world-width world-height tile-dim]]
-            [cas.render :refer [renderer stage tile-textures robot-texture]]))
+            [cas.render :refer [renderer stage tile-textures robot-texture]]
+            [cas.util :refer [tile-at each-tile map-tiles]]))
 
 (enable-console-print!)
 
 (def keystate (atom {}))
 
-(defn world-at [world x y] ((world x) y))
+(def world-at tile-at)
 
 (defn set-world-at!
   [x y kind]
@@ -22,19 +23,12 @@
            [:world x y :passable]
            (fn [] (world/passability kind)))))
 
-;; Helper functions for traversing the world's state tile-by-tile
-(defn each-tile [world func]
-  (loop [x 0 y 0]
-    (let [it (world-at world x y)]
-      (func it x y)
-      (cond
-        (< x (dec world-width)) (recur (inc x) y)
-        (< y (dec world-height)) (recur 0 (inc y))
-        :else nil))))
-(defn map-tiles [world func]
-  (vec (map-indexed (fn [x col]
-                      (vec (map-indexed #(func x %1 %2) col)))
-         world)))
+(defn new-robot
+  [x y script]
+  {:pos {:x x :y y}
+   :script script
+   :pointer nil
+   :response nil})
 
 (defn setup! []
   (let [world (world/new-chunk world-width world-height)]
@@ -45,7 +39,6 @@
                 sprite (js/PIXI.Sprite. tex)]
             ;; Add the sprite to the stage
             (.addChild stage sprite)
-            (println (:kind tile) tile-dim)
             (set! (.-x sprite) (* x tile-dim))
             (set! (.-y sprite) (* y tile-dim))
             (set! (.-width sprite) tile-dim)
@@ -60,14 +53,6 @@
       (.addChild stage psprite)
       (set! (.-width psprite) tile-dim)
       (set! (.-height psprite) tile-dim))))
-
-(defn new-robot
-  [x y script]
-  {:pos {:x x :y y}
-   :script script
-   :pointer nil
-   :response nil})
-
 (defn is-key-down [key]
   (@keystate key))
 
@@ -142,15 +127,17 @@
 
 (defn apply-gravity
   [world {:keys [pos] :as player}]
-  (letfn [(air-below? []
-            (:passable (world-at world (:x pos) (inc (:y pos)))))
-          (air-beside? [dir]
-            (let [op (case dir :left dec :right inc)]
-              (:passable (world-at world (op (:x pos)) (:y pos)))))]
-    (if (and (air-below?)
-             (and (air-beside? :left) (air-beside? :right)))
-      (update-in player [:pos :y] inc)
-      player)))
+  (if (.-godMode js/window)
+    player
+    (letfn [(air-below? []
+              (:passable (world-at world (:x pos) (inc (:y pos)))))
+            (air-beside? [dir]
+              (let [op (case dir :left dec :right inc)]
+                (:passable (world-at world (op (:x pos)) (:y pos)))))]
+      (if (and (air-below?)
+            (and (air-beside? :left) (air-beside? :right)))
+        (update-in player [:pos :y] inc)
+        player))))
 
 (defn update-player! []
   (let [player (:player @state)
