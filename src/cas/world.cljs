@@ -67,12 +67,6 @@
               (vec (map simplex-tile col)))]
       (vec (map simplex-col coords)))))
 
-(defn apply-linear-gradient
-  [grid height]
-  (let [grad (vec (map #(* % (/ 1.0 height))
-                       (range height)))]
-    (vec (map #(vec (map + % grad)) grid))))
-
 (defn ores-transform
   [tiles x y noise]
   (let [tile (tile-at tiles x y)]
@@ -80,33 +74,20 @@
       (mk-tile :ore)
       tile)))
 
-(defn hills-caves-transform
+(defn hills-transform
   [x y noise]
-  (def BASE-NUMBER 20)
-  (def RANDOM_NUMBER 50)
-  (def CENTER-NUMBER (/ RANDOM_NUMBER 2))
-  (if (< y BASE-NUMBER)
-    -1
-    (let [y (- y BASE-NUMBER)
-          norm-noise (/ (+ noise 1) 2)]
-      (if (< y RANDOM_NUMBER)
-        (let [extremeness (/ (js/Math.abs (- y CENTER-NUMBER)) CENTER-NUMBER)
-              noisyness (- 1 extremeness)
-              adjusted-noise (* norm-noise noisyness)
-              is-air (< y CENTER-NUMBER)]
-          (cond
-            is-air (- noise extremeness)
-            (= y CENTER-NUMBER) noise
-            :else (+ noise extremeness)))
-        1))))
-
-(defn noise-to-tiles
-  [x y noise]
-  (mk-tile
-    (cond
-      (< noise 0) :air
-      (< noise 0.15) :dirt
-      :else :stone)))
+  (def BASE-NUMBER 50)
+  (def CENTER-NUMBER 15)
+  (let [adjusted-noise
+        (if (< y BASE-NUMBER)
+          -1 ;; Magically make this stuff air!?!?!?!?
+          (let [extremeness (/ (- y BASE-NUMBER CENTER-NUMBER) CENTER-NUMBER)]
+            (+ noise extremeness)))]
+    (mk-tile
+      (cond
+        (< adjusted-noise 0) :air
+        (< adjusted-noise 0.15) :dirt
+        :else :stone))))
 
 (defn grow-grass
   [tiles x y tile]
@@ -116,17 +97,36 @@
     (mk-tile :grass)
     tile))
 
+(defn foo [x]
+  (/ (+ 1 x) 2))
+
+(defn caves-transform
+  [tiles noise-1 x y noise]
+  (let [tile (tile-at tiles x y)]
+    (if (< (* (foo (tile-at noise-1 x y)) noise) -0.25)
+      (mk-tile :air)
+      tile)))
+
+;; (defn caves-transform
+;;   [tiles x y noise]
+;;   (let [tile (tile-at tiles x y)]
+;;     (if (< noise -0.25)
+;;       (mk-tile :air)
+;;       tile)))
+
 (defn new-chunk
   [width height]
-  (let [simplex-map (new-simplex-map width height [3 2]
-                      hills-caves-transform)
-        tiles (map-tiles simplex-map noise-to-tiles)
-        grassy-tiles (map-tiles tiles (partial grow-grass tiles))
+  (let [land-tiles (new-simplex-map width height [3 2]
+                     hills-transform)
+        grassy-tiles (map-tiles land-tiles (partial grow-grass land-tiles))
         ores-map (new-simplex-map width height [20 20]
-                   (partial ores-transform grassy-tiles))]
-    ores-map))
+                   (partial ores-transform grassy-tiles))
+        caves-noise-1 (new-simplex-map width height [3 3] (fn [_ _ n] n))
+        caves-map (new-simplex-map width height [10 10]
+                        (partial caves-transform ores-map caves-noise-1))
 
-;(enable-console-print!)
-;(println "about to simplex")
-;(println "simplex map" (new-simplex-map 10 20))
-;(println "done simplex")
+        ;; caves-map (new-simplex-map width height [10 10]
+        ;;             (partial caves-transform ores-map))
+        ]
+    caves-map))
+
