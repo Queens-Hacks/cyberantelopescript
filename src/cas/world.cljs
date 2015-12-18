@@ -55,7 +55,7 @@
   [width height]
   (let [simpl (js/SimplexNoise. rand)
         coords (new-coord-map width height)
-        freq (/ 5.0 width)]
+        freq (/ 20.0 width)]
     (letfn [(simplex-tile [coord]
               (.noise2D simpl
                         (* freq (coord 0))
@@ -73,7 +73,7 @@
 (defn grid-to-stone
   [grid]
   (vec (map (fn [col] (vec (map (fn [cell]
-                                  (tile (if (<= cell 0.5)
+                                  (tile (if (<= cell 0.1)
                                     :air
                                     :stone))
                         )
